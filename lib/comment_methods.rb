@@ -13,21 +13,19 @@ module ActsAsCommentable
       comment_model.scope :recent, -> { comment_model.reorder('created_at DESC') }
     end
 
-    def is_comment_type?(type)
-      type.to_s == role.singularize.to_s
-    end
-
     module Finders
       # Helper class method to lookup all comments assigned
       # to all commentable types for a given user.
-      def find_comments_by_user(user, role = "comments")
-        where(["user_id = ? and role = ?", user.id, role]).order("created_at DESC")
+      def find_comments_by_user(app_code, user)
+        joins(:app).where(tb_app: {code: app_code}).
+          where("user_id = ?").order("created_at DESC")
       end
 
       # Helper class method to look up all comments for 
       # commentable class name and commentable id.
-      def find_comments_for_commentable(commentable_str, commentable_id, role = "comments")
-        where(["commentable_type = ? and commentable_id = ? and role = ?", commentable_str, commentable_id, role]).order("created_at DESC")
+      def find_comments_for_commentable(app_code, commentable_str, commentable_id)
+        joins(:app).where(tb_app: {code: app_code})
+        where(["commentable_type = ? and commentable_id = ?", commentable_str, commentable_id]).order("created_at DESC")
       end
 
       # Helper class method to look up a commentable object

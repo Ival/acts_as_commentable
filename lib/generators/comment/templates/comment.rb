@@ -12,7 +12,8 @@ class Comment < ActiveRecord::Base
 
   # NOTE: Comments belong to a user
   belongs_to :user
+  belongs_to :app
 
   # NOTE: For Mass Assignment Security
-  attr_accessible :title, :comment
+  #attr_accessible :title, :comment
 end

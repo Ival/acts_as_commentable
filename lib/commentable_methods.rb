@@ -6,54 +6,37 @@ module Juixe
     module Commentable #:nodoc:
 
       def self.included(base)
-        base.extend ClassMethods  
+        base.extend ClassMethods
       end
 
       module ClassMethods
-        def acts_as_commentable(*args)
-          comment_roles = args.to_a.flatten.compact.map(&:to_sym)
-
-          class_attribute :comment_types
-          self.comment_types = (comment_roles.blank? ? [:comments] : comment_roles)
-
+        def acts_as_commentable
           options = ((args.blank? or args[0].blank?) ? {} : args[0])
 
-          if !comment_roles.blank?
-            comment_roles.each do |role|
-              has_many "#{role.to_s}_comments".to_sym,
-                {:class_name => "Comment",
-                  :as => :commentable,
-                  :dependent => :destroy,
-                  :conditions => ["role = ?", role.to_s],
-                  :before_add => Proc.new { |x, c| c.role = role.to_s }}
+          has_many :comments, class_name: "::DS::Comment", as: :commentable, dependent: :destroy
+
+          class_eval %{
+            delegate :code, to: :app, prefix: true, allow_nil: false
+
+            def self.find_comments_for(obj)
+              commentable = self.base_class.name
+              Comment.find_comments_for_commentable(obj.app_code, commentable, obj.id)
             end
-          else
-            has_many :comments, {:as => :commentable, :dependent => :destroy}
-          end
 
-          comment_types.each do |role|
-            method_name = (role == :comments ? "comments" : "#{role.to_s}_comments").to_s
-            class_eval %{
-              def self.find_#{method_name}_for(obj)
-                commentable = self.base_class.name
-                Comment.find_comments_for_commentable(commentable, obj.id, "#{role.to_s}")
-              end
+            def self.find_comments_by_user(app_code, user) 
+              commentable = self.base_class.name
+              Comment.joins(:app).where(tb_app: {code: app_code}).
+                where(["user_id = ? and commentable_type = ?", user.id, commentable]).order("created_at DESC")
+            end
 
-              def self.find_#{method_name}_by_user(user) 
-                commentable = self.base_class.name
-                Comment.where(["user_id = ? and commentable_type = ? and role = ?", user.id, commentable, "#{role.to_s}"]).order("created_at DESC")
-              end
+            def comments_ordered_by_submitted
+              Comment.find_comments_for_commentable(app_code, self.class.name, id)
+            end
 
-              def #{method_name}_ordered_by_submitted
-                Comment.find_comments_for_commentable(self.class.name, id, "#{role.to_s}")
-              end
-
-              def add_#{method_name.singularize}(comment)
-                comment.role = "#{role.to_s}"
-                #{method_name} << comment
-              end
-            }
-          end
+            def add_comments(comment)
+              comments << comment
+            end
+          }
         end
       end
     end

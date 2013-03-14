@@ -11,9 +11,7 @@ module Juixe
 
       module ClassMethods
         def acts_as_commentable
-          options = ((args.blank? or args[0].blank?) ? {} : args[0])
-
-          has_many :comments, class_name: "::DS::Comment", as: :commentable, dependent: :destroy
+          has_many :comments, class_name: "DataSource::Comment", as: :commentable, dependent: :destroy
 
           class_eval %{
             delegate :code, to: :app, prefix: true, allow_nil: false

@@ -9,8 +9,31 @@ module ActsAsCommentable
 
     def self.included(comment_model)
       comment_model.extend Finders
+      comment_model.extend CacheCounter
       comment_model.scope :in_order, -> { comment_model.order('created_at ASC') }
       comment_model.scope :recent, -> { comment_model.reorder('created_at DESC') }
+      comment_model.after_create :counter_cache_after_destroy
+      comment_model.after_destroy :counter_cache_after_destroy
+    end
+
+    module CacheCounter
+      ###############################################################
+      # Redis counter cache
+      ###############################################################
+
+      def self.redis
+        Redis.new
+      end
+
+      def counter_cache_after_create
+        cache_hash_key = "counter:comments"
+        self.class.redis.hincrby cache_hash_key, "#{commentable_types}:#{commentable_id}", 1
+      end
+
+      def counter_cache_after_destroy
+        cache_hash_key = "counter:comments"
+        self.class.redis.hincrby cache_hash_key, "#{commentable_types}:#{commentable_id}", -1
+      end
     end
 
     module Finders
